@@ -62,15 +62,18 @@ public class OffAxisProjection : MonoBehaviour {
         //orientation = Quaternion.Inverse (offset) * RotationSphere.transform.rotation;
 
         // landscape iPhone X, measures in meters
-        left = myCamera.transform.position.x - 0.000f;
-        right = myCamera.transform.position.x + 0.135f;
-        top = myCamera.transform.position.y + 0.022f;
-        bottom = myCamera.transform.position.y - 0.040f;
+        left = myCamera.transform.position.x - 16f;
+        right = myCamera.transform.position.x + 16f;
+        top = myCamera.transform.position.y + 14f;
+        bottom = myCamera.transform.position.y - 14f;
+
+        //0.05842 widht
+        //0.104
 
         distance = Mathf.Abs (myCamera.transform.position.z);
 
-        far = 10f; // may need bigger for bigger scenes, max 10 metres for now
-        near = 0.1f;
+        far = 3f; // may need bigger for bigger scenes, max 10 metres for now
+        near = 1f;
 
         Vector3 topLeft = new Vector3 (left, top, near);
         Vector3 topRight = new Vector3 (right, top, near);
@@ -78,7 +81,7 @@ public class OffAxisProjection : MonoBehaviour {
         Vector3 bottomRight = new Vector3 (right, bottom, near);
 
         // move near to 0.01 (1 cm from eye)
-        float scale_factor = near / distance; //0.01f / near; near was one
+        float scale_factor = 0.01f / near; //near was one
         near *= scale_factor;
         left *= scale_factor;
         right *= scale_factor;
@@ -99,7 +102,7 @@ public class OffAxisProjection : MonoBehaviour {
         */
         Vector3 directionFromQ = orientation * Vector3.forward;
         myCamera.transform.position = directionFromQ;
-        myCamera.transform.position = new Vector3 (myCamera.transform.position.x, myCamera.transform.position.y, -1f);
+        myCamera.transform.position = new Vector3 (myCamera.transform.position.x / 2, myCamera.transform.position.y / 2, -1f);
         //Debug.Log ("UPDATE " + directionFromQ.x);
     }
 
