@@ -3,132 +3,60 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class OffAxisProjection : MonoBehaviour {
-    public Camera myCamera;
 
-    //public LineRenderer lineRenderer;
+    private Quaternion Orientation, GyroOffset;
+    private float left, right, bottom, top, near, far;
 
-    /*
-        normalize euler? move from there, depending on the normalize?
-        will that avoid gimabls? 
+    [SerializeField]
+    private Camera OffAxisCamera;
+    [SerializeField]
+    private float NearUserInput, FarUserInput;
 
-        get scale factor correct
-        try some shit to calculate distance correctly
-        1. set portalpos as -1 or 0. Gotta find what my portal pos is. Or make my own "portal".
-        2. work more similiarly to eye tracking example
-
-        correctly set up left, right, top bottom. In meters? Or do like 1/2 like in other exmaple. 
-
-        devicecam is their portal cam? I think
-    */
-
-    public float left, right, bottom, top, near, far;
-
-    public float nearDist;
-
-    float distance;
-
-    Quaternion orientation;
-
-    public GameObject RotationSphere;
-
-    Quaternion offset;
-
-    //Every frame try to get gyroscope commands, until they kick in. 
+    //Gyroscope hardware workaround. Attempt to get Gyroscope input, until your device enables it
     IEnumerator InitializeGyro () {
         Input.gyro.enabled = true;
-        offset = Input.gyro.attitude;
-        while (offset == Quaternion.identity) {
-            offset = Input.gyro.attitude;
+        GyroOffset = Input.gyro.attitude;
+        while (GyroOffset == Quaternion.identity) {
+            GyroOffset = Input.gyro.attitude;
             yield return null;
         }
-        Debug.Log ("Awake" + offset);
     }
 
     void Awake () {
         StartCoroutine (InitializeGyro ());
     }
 
-    void Start () {
-        //RotationSphere.transform.rotation = Random.rotation;
-        //offset = Input.gyro.attitude;
-        //Debug.Log ("START " + offset.eulerAngles.x + " " + offset.eulerAngles.y + " " + offset.eulerAngles.z);
-        //difference between this and identity
-    }
-
     void LateUpdate () {
 
-        orientation = Quaternion.Inverse (offset) * Input.gyro.attitude;
-        //Vector3 myCamPos = myCamera.ScreenToWorldPoint ();
-        //orientation = Quaternion.Inverse (offset) * RotationSphere.transform.rotation;
+        Orientation = Quaternion.Inverse (GyroOffset) * Input.gyro.attitude;
 
-        // landscape iPhone X, measures in meters
-        left = myCamera.transform.position.x - 16f;
-        right = myCamera.transform.position.x + 16f;
-        top = myCamera.transform.position.y + 14f;
-        bottom = myCamera.transform.position.y - 14f;
+        near = NearUserInput; //1f
+        far = FarUserInput; //3f
 
-        //0.05842 widht
-        //0.104
-
-        distance = Mathf.Abs (myCamera.transform.position.z);
-
-        far = 3f; // may need bigger for bigger scenes, max 10 metres for now
-        near = 1f;
+        left = OffAxisCamera.transform.position.x - 16f;
+        right = OffAxisCamera.transform.position.x + 16f;
+        top = OffAxisCamera.transform.position.y + 14f;
+        bottom = OffAxisCamera.transform.position.y - 14f;
 
         Vector3 topLeft = new Vector3 (left, top, near);
         Vector3 topRight = new Vector3 (right, top, near);
         Vector3 bottomLeft = new Vector3 (left, bottom, near);
         Vector3 bottomRight = new Vector3 (right, bottom, near);
 
-        // move near to 0.01 (1 cm from eye)
-        float scale_factor = 0.01f / near; //near was one
-        near *= scale_factor;
-        left *= scale_factor;
-        right *= scale_factor;
-        top *= scale_factor;
-        bottom *= scale_factor;
+        float scaleFactor = 0.01f / near; 
+        near *= scaleFactor;
+        left *= scaleFactor;
+        right *= scaleFactor;
+        top *= scaleFactor; 
+        bottom *= scaleFactor;
 
-        Matrix4x4 m = PerspectiveOffCenter (left, right, bottom, top, near, far);
-        myCamera.projectionMatrix = m;
+        OffAxisCamera.projectionMatrix = PerspectiveOffCenter (left, right, bottom, top, near, far);
 
-        //Vector3 euler = EulerClamp (orientation);
-        //1 - 0.5f * Mathf.Min (Mathf.Abs (myCamera.transform.position.x) + Mathf.Abs (myCamera.transform.position.y), 1)
-
-        /*
-        myCamera.transform.position = new Vector3 (
-            (-euler.y / 60),
-            euler.x / 60, -1f
-        );
-        */
-        Vector3 directionFromQ = orientation * Vector3.forward;
-        myCamera.transform.position = directionFromQ;
-        myCamera.transform.position = new Vector3 (myCamera.transform.position.x / 2, myCamera.transform.position.y / 2, -1f);
-        //Debug.Log ("UPDATE " + directionFromQ.x);
+        OffAxisCamera.transform.position = Orientation * Vector3.forward;
+        OffAxisCamera.transform.position = new Vector3 (OffAxisCamera.transform.position.x / 2, OffAxisCamera.transform.position.y / 2, 0f);
     }
 
-    private Vector3 EulerClamp (Quaternion orientation) {
-        Vector3 euler = orientation.eulerAngles;
-
-        if (euler.y >= 180f) {
-            euler.y -= 360;
-            euler.y = Mathf.Abs (euler.y);
-        }
-        if (euler.x >= 180f) {
-            euler.x -= 360;
-            euler.x = Mathf.Abs (euler.x);
-        }
-        if (euler.z >= 180f) {
-            euler.z -= 360;
-            euler.z = Mathf.Abs (euler.z);
-        }
-
-        return euler;
-    }
-
-    private static Quaternion GyroToUnity (Quaternion q) {
-        return new Quaternion (q.x, q.y, -q.z, -q.w);
-    }
-
+    //https://docs.unity3d.com/520/Documentation/ScriptReference/Camera-projectionMatrix.html
     static Matrix4x4 PerspectiveOffCenter (float left, float right, float bottom, float top, float near, float far) {
         float x = 2.0F * near / (right - left);
         float y = 2.0F * near / (top - bottom);
@@ -155,5 +83,25 @@ public class OffAxisProjection : MonoBehaviour {
         m[3, 2] = e;
         m[3, 3] = 0;
         return m;
+    }
+
+    //Unused, but potentially useful in the future
+    private Vector3 EulerClamp (Quaternion orientation) {
+        Vector3 euler = orientation.eulerAngles;
+
+        if (euler.y >= 180f) {
+            euler.y -= 360;
+            euler.y = Mathf.Abs (euler.y);
+        }
+        if (euler.x >= 180f) {
+            euler.x -= 360;
+            euler.x = Mathf.Abs (euler.x);
+        }
+        if (euler.z >= 180f) {
+            euler.z -= 360;
+            euler.z = Mathf.Abs (euler.z);
+        }
+
+        return euler;
     }
 }
